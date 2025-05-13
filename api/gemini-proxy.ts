@@ -37,7 +37,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ]
 
     Requirements:
-    - Generate exactly 10 questions
     - Each question must have exactly 4 options
     - The correctAnswer must match one of the options exactly
     - The id should be a string number from "1" to "10"
