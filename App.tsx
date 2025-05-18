@@ -1,34 +1,50 @@
-import React, {useState, useRef} from 'react';
-import {
-  SafeAreaView,
-  StyleSheet,
-  View,
-  TouchableOpacity,
-  Text,
-  Image,
-} from 'react-native';
-import {Camera, useCameraDevices} from 'react-native-vision-camera';
+import React, { useState, useRef } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, Image } from 'react-native';
+import { Camera, CameraType } from 'expo-camera';
+import * as MediaLibrary from 'expo-media-library';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import * as ImageManipulator from 'expo-image-manipulator';
 
-const App = () => {
-  const [imageSource, setImageSource] = useState<string | null>(null);
-  const camera = useRef<Camera>(null);
-  const devices = useCameraDevices();
-  const device = devices.back;
+export default function App() {
+  const [permission, requestPermission] = Camera.useCameraPermissions();
+  const [photo, setPhoto] = useState<string | null>(null);
+  const cameraRef = useRef<Camera | null>(null);
+
+  if (!permission) {
+    return <View />;
+  }
+
+  if (!permission.granted) {
+    return (
+      <View style={styles.container}>
+        <Text style={{ textAlign: 'center' }}>We need your permission to show the camera</Text>
+        <TouchableOpacity style={styles.button} onPress={requestPermission}>
+          <Text style={styles.buttonText}>Grant Permission</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   const takePhoto = async () => {
-    if (camera.current) {
-      const photo = await camera.current.takePhoto();
-      setImageSource(`file://${photo.path}`);
+    if (cameraRef.current) {
+      const photo = await cameraRef.current.takePictureAsync();
+      const manipResult = await ImageManipulator.manipulateAsync(
+        photo.uri,
+        [{ resize: { width: 1080 } }],
+        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+      );
+      setPhoto(manipResult.uri);
+      await MediaLibrary.saveToLibraryAsync(manipResult.uri);
     }
   };
 
   const uploadPhoto = async () => {
-    if (!imageSource) return;
+    if (!photo) return;
 
     try {
       const formData = new FormData();
       formData.append('image', {
-        uri: imageSource,
+        uri: photo,
         type: 'image/jpeg',
         name: 'photo.jpg',
       });
@@ -48,47 +64,41 @@ const App = () => {
     }
   };
 
-  if (!device) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <Text>Loading camera...</Text>
-      </SafeAreaView>
-    );
-  }
-
   return (
-    <SafeAreaView style={styles.container}>
-      {imageSource ? (
-        <View style={styles.preview}>
-          <Image source={{uri: imageSource}} style={styles.previewImage} />
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={styles.button}
-              onPress={() => setImageSource(null)}>
-              <Text style={styles.buttonText}>Retake</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.button} onPress={uploadPhoto}>
-              <Text style={styles.buttonText}>Upload</Text>
-            </TouchableOpacity>
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.container}>
+        {photo ? (
+          <View style={styles.preview}>
+            <Image source={{ uri: photo }} style={styles.previewImage} />
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity style={styles.button} onPress={() => setPhoto(null)}>
+                <Text style={styles.buttonText}>Retake</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.button} onPress={uploadPhoto}>
+                <Text style={styles.buttonText}>Upload</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      ) : (
-        <View style={styles.cameraContainer}>
-          <Camera
-            ref={camera}
-            style={styles.camera}
-            device={device}
-            isActive={true}
-            photo={true}
-          />
-          <TouchableOpacity style={styles.captureButton} onPress={takePhoto}>
-            <View style={styles.captureButtonInner} />
-          </TouchableOpacity>
-        </View>
-      )}
-    </SafeAreaView>
+        ) : (
+          <View style={styles.cameraContainer}>
+            <Camera
+              ref={cameraRef}
+              style={styles.camera}
+              type={CameraType.back}
+              ratio="16:9"
+            >
+              <View style={styles.buttonContainer}>
+                <TouchableOpacity style={styles.captureButton} onPress={takePhoto}>
+                  <View style={styles.captureButtonInner} />
+                </TouchableOpacity>
+              </View>
+            </Camera>
+          </View>
+        )}
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -97,25 +107,11 @@ const styles = StyleSheet.create({
   },
   cameraContainer: {
     flex: 1,
-    position: 'relative',
   },
   camera: {
     flex: 1,
-  },
-  captureButton: {
-    position: 'absolute',
-    bottom: 40,
-    alignSelf: 'center',
-    width: 70,
-    height: 70,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 35,
-    padding: 5,
-  },
-  captureButtonInner: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 30,
+    justifyContent: 'flex-end',
+    paddingBottom: 20,
   },
   preview: {
     flex: 1,
@@ -140,6 +136,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  captureButton: {
+    width: 70,
+    height: 70,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 35,
+    padding: 5,
+  },
+  captureButtonInner: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 30,
+  },
 });
-
-export default App;
