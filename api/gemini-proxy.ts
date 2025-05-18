@@ -19,7 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // Sophisticated prompt from frontend
-  const prompt = `You are a quiz generator. Analyze this image and create 10 multiple choice questions based on its content.
+  const prompt = `You are a quiz generator. Analyze this image and create multiple choice questions based on its content and in it's original language.
     
     IMPORTANT: Your response must be ONLY a valid JSON array with exactly this structure:
     [
@@ -42,6 +42,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     - The id should be a string number from "1" to "10"
     - Do not include any explanations or additional text
     - Ensure the response is valid JSON
+    - Do not translate or transliterate the original language of the image
     
     RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
 
